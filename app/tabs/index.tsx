@@ -49,6 +49,7 @@ export default function Index() {
             <CartButton />
           </View>
         )}
+        // ListFooterComponent={()=>}
       />
     </SafeAreaView>
   );
