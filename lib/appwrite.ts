@@ -107,7 +107,7 @@ export const getCurrentUserData = async () => {
     const result = await tablesDB.listRows({
       databaseId: appwriteConfig.databaseId,
       tableId: appwriteConfig.userTableId,
-      queries: [ Query.equal('accountId', [currentAccount.$id]) ]
+      queries: [ Query.equal('AccountID', [currentAccount.$id]) ]
     });
 
     if (!result || result.rows.length === 0) {
