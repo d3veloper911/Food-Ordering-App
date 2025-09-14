@@ -7,6 +7,10 @@ export const appwriteConfig = {
   projectId: process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID!, // Your Appwrite Project ID
   databaseId: '68bdbcdf000ac963ba46',
   userTableId: 'user',  // renamed from “userCollectionId” for clarity
+  categoriesCollectionId: 'categories',
+  menuCollectionId: 'menu',
+  customizationsCollectionId: 'customizations',
+  menu_customizationsCollectionId: 'menu_customizations',
 };
 
 const client = new Client();
@@ -107,7 +111,7 @@ export const getCurrentUserData = async () => {
     const result = await tablesDB.listRows({
       databaseId: appwriteConfig.databaseId,
       tableId: appwriteConfig.userTableId,
-      queries: [ Query.equal('AccountID', [currentAccount.$id]) ]
+      queries: [Query.equal('AccountID', [currentAccount.$id])]
     });
 
     if (!result || result.rows.length === 0) {
