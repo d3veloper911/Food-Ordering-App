@@ -1,16 +1,17 @@
 import { CreateUserParams, SignInParams } from "@/type";
-import { Account, Avatars, Client, ID, Query, TablesDB } from "react-native-appwrite";
+import { Account, Avatars, Client, ID, Query, Storage, TablesDB } from "react-native-appwrite";
 
 export const appwriteConfig = {
   endpoint: process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT!, // Your Appwrite Endpoint
   platform: "com.dev.food",  // bundle identifier / app‑id
   projectId: process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID!, // Your Appwrite Project ID
   databaseId: '68bdbcdf000ac963ba46',
+  bucketId: '68c59ae80039d1cacf51', // for storage
   userTableId: 'user',  // renamed from “userCollectionId” for clarity
-  categoriesCollectionId: 'categories',
-  menuCollectionId: 'menu',
-  customizationsCollectionId: 'customizations',
-  menu_customizationsCollectionId: 'menu_customizations',
+  categoriesTableId: 'categories',
+  menuTableId: 'menu',
+  customizationsTableId: 'customizations',
+  menu_customizationsTableId: 'menu_customizations',
 };
 
 const client = new Client();
@@ -20,9 +21,10 @@ client
   .setProject(appwriteConfig.projectId)
   .setPlatform(appwriteConfig.platform);
 
-const account = new Account(client);
-const tablesDB = new TablesDB(client);
+export const account = new Account(client);
+export const tablesDB = new TablesDB(client);
 const avatars = new Avatars(client);
+export const storage = new Storage(client);
 
 // ◀ Added helper function to check if user is logged in (session exists)
 async function isLoggedIn(): Promise<boolean> {
@@ -102,27 +104,30 @@ export const signIn = async ({ email, password }: SignInParams) => {
 
 export const getCurrentUserData = async () => {
   try {
-    // Ensure user is authenticated before fetching account or rows
-    const currentAccount = await account.get();  // ◀ This will fail if guest / no session
-    if (!currentAccount) {
-      throw new Error("No authenticated user");
+    // 1️⃣ Check if session exists
+    const isAuthenticated = await restoreSession();
+    if (!isAuthenticated) {
+      throw new Error("No authenticated session");
     }
 
+    // 2️⃣ Now get account info
+    const currentAccount = await account.get();
+
+    // 3️⃣ Fetch user row from tablesDB
     const result = await tablesDB.listRows({
       databaseId: appwriteConfig.databaseId,
       tableId: appwriteConfig.userTableId,
-      queries: [Query.equal('AccountID', [currentAccount.$id])]
+      queries: [Query.equal('accountId', [currentAccount.$id])]
     });
 
     if (!result || result.rows.length === 0) {
       throw new Error("User data not found in table");
     }
 
-    const userRow = result.rows[0];
-    return { account: currentAccount, data: userRow };
-  } catch (e: any) {
-    console.error("getCurrentUserData error:", e);  // ◀ Added log
-    throw new Error(e.message || "getCurrentUserData unknown error");
+    return { account: currentAccount, data: result.rows[0] };
+  } catch (err: any) {
+    console.error("getCurrentUserData error:", err);
+    throw new Error(err.message || "getCurrentUserData unknown error");
   }
 };
 
@@ -134,4 +139,12 @@ export const restoreSession = async (): Promise<boolean> => {
   } catch (err) {
     return false;
   }
+};
+
+export const signOut = async () => {
+    try {
+      await account.deleteSession({ sessionId: "current" });  // ◀ Change: wrap session deletion to avoid errors if no session
+    } catch (err) {
+      console.log("No current session to delete:", err);  // ◀ Added fallback log
+    }
 };

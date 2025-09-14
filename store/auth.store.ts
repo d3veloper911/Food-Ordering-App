@@ -1,4 +1,4 @@
-import { getCurrentUserData } from '@/lib/appwrite';
+import { getCurrentUserData, restoreSession } from '@/lib/appwrite';
 import { User } from '@/type';
 import { create } from 'zustand';
 
@@ -29,19 +29,18 @@ const useAuthStore = create<AuthState>((set) => ({
         set({ isLoading: true });
 
         try {
-            const user = await getCurrentUserData();
-            console.log("User structure:", user);
-            console.log("User keys:", Object.keys(user));
-            if (user)
-                set({ isAuthenticated: true, user: user as unknown as User });
-            else
+            const hasSession = await restoreSession(); // check if session exists
+            if (!hasSession) {
                 set({ isAuthenticated: false, user: null });
-        }
-        catch (e) {
+                return;
+            }
+
+            const user = await getCurrentUserData();
+            set({ isAuthenticated: true, user: user as unknown as User });
+        } catch (e) {
             console.log("fetchAuthenticatedUser error", e);
             set({ isAuthenticated: false, user: null });
-        }
-        finally {
+        } finally {
             set({ isLoading: false });
         }
     },
