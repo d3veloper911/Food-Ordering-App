@@ -17,7 +17,7 @@ const SignIn = () => {
     try {
       await signIn({ email, password });
       //appwrite sign in logic hereF
-      router.replace('/');
+      router.replace('/tabs');
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
