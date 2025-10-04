@@ -1,4 +1,4 @@
-import { CreateUserParams, SignInParams } from "@/type";
+import { Category, CreateUserParams, GetMenuParams, MenuItem, SignInParams } from "@/type";
 import { Account, Avatars, Client, ID, Query, Storage, TablesDB } from "react-native-appwrite";
 
 export const appwriteConfig = {
@@ -142,9 +142,134 @@ export const restoreSession = async (): Promise<boolean> => {
 };
 
 export const signOut = async () => {
-    try {
-      await account.deleteSession({ sessionId: "current" });  // ◀ Change: wrap session deletion to avoid errors if no session
-    } catch (err) {
-      console.log("No current session to delete:", err);  // ◀ Added fallback log
-    }
+  try {
+    await account.deleteSession({ sessionId: "current" });  // ◀ Change: wrap session deletion to avoid errors if no session
+  } catch (err) {
+    console.log("No current session to delete:", err);  // ◀ Added fallback log
+  }
 };
+
+// export const getMenu = async ({ category, query, limit }: GetMenuParams): Promise<MenuItem[]> => {
+//   try {
+//     const queries: string[] = [];
+
+//     if (category) queries.push(Query.equal("categories", category));
+//     if (query) queries.push(Query.search("name", query));
+//     if (limit) queries.push(Query.limit(limit));
+
+//     const menus = await tablesDB.listRows({
+//       databaseId: appwriteConfig.databaseId,
+//       tableId: appwriteConfig.menuTableId,
+//       queries,
+//     });
+
+//     return menus.rows.map((row) => {
+//       const fileId = row.image_url; // file ID stored in DB
+//       const bucketId = appwriteConfig.bucketId;
+//       const base = appwriteConfig.endpoint.replace(/\/v1$/, ""); // remove trailing /v1 if present
+//       const url = `${base}/v1/storage/buckets/${bucketId}/files/${fileId}/view?project=${appwriteConfig.projectId}`;
+
+//       const menuItem: MenuItem = {
+//         $id: row.$id,
+//         $createdAt: row.$createdAt,
+//         $updatedAt: row.$updatedAt,
+//         $permissions: row.$permissions,
+//         name: row.name,
+//         price: row.price,
+//         image_url: url, // this URL should now work
+//         description: row.description,
+//         calories: row.calories,
+//         protein: row.protein,
+//         rating: row.rating,
+//         type: row.type,
+//       };
+
+//       return menuItem;
+//     });
+
+//   } catch (e) {
+//     throw new Error(e as string);
+//   }
+// };
+
+export const getMenu = async ({ category, query, limit }: GetMenuParams): Promise<MenuItem[]> => {
+  try {
+    const queries: any[] = [];
+    if (category) queries.push(Query.equal("categories", category));
+    if (query) queries.push(Query.search("name", query));
+    if (limit) queries.push(Query.limit(limit));
+
+    const menus = await tablesDB.listRows({
+      databaseId: appwriteConfig.databaseId,
+      tableId: appwriteConfig.menuTableId,
+      queries,
+    });
+
+    return menus.rows.map((row) => {
+      const base = appwriteConfig.endpoint.replace(/\/v1$/, "");
+      const bucketId = appwriteConfig.bucketId;
+
+      // If row.image_url already has full URL, use it. Otherwise, construct public URL.
+      const image_url = row.image_url.startsWith("http")
+        ? row.image_url
+        : `${base}/storage/buckets/${bucketId}/files/${row.image_url}/view?project=${appwriteConfig.projectId}`;
+
+      return {
+        $id: row.$id,
+        $createdAt: row.$createdAt,
+        $updatedAt: row.$updatedAt,
+        $permissions: row.$permissions,
+        name: row.name,
+        price: row.price,
+        image_url,  // ✅ public URL
+        description: row.description,
+        calories: row.calories,
+        protein: row.protein,
+        rating: row.rating,
+        type: row.type,
+      } as MenuItem;
+    });
+  } catch (e: any) {
+    throw new Error(e.message || "Failed to fetch menu");
+  }
+};
+
+
+
+
+
+// export const getCategories = async () => {
+//   try {
+//     const categories = await tablesDB.listRows({
+
+//       databaseId: appwriteConfig.databaseId,
+//       tableId: appwriteConfig.categoriesTableId,
+//     });
+//     return categories.rows;
+//   }
+// catch (e) {
+//   console.error('Error fetching categories:', e);
+//   throw new Error(e instanceof Error ? e.message : String(e));
+// }
+// }
+
+export const getCategories = async (): Promise<Category[]> => {
+  try {
+    const categories = await tablesDB.listRows({
+      databaseId: appwriteConfig.databaseId,
+      tableId: appwriteConfig.categoriesTableId,
+    });
+
+    return categories.rows.map((row) => {
+      return {
+        $id: row.$id,
+        name: row.name,
+        description: row.description,
+      } as Category;
+    });
+  } catch (e: any) {
+    console.error('Error fetching categories:', e);
+    throw new Error(e instanceof Error ? e.message : String(e));
+  }
+};
+
